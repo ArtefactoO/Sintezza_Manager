@@ -1,0 +1,18 @@
+## Interface: 16001
+## Title: Sintezza Addons Manager
+## Notes: Manage addon dependencies and share addon sets across characters.
+## Notes-ruRU: Управление аддонами, зависимостями и общими наборами персонажей.
+## Author: Sintezza
+## X-License: MIT
+## Version: 0.1.0
+## IconTexture: Interface\AddOns\Sintezza_Manager\Media\Icon
+## Category: Addon Management
+## OptionalDeps: Sintezza_Theme
+## SavedVariables: Sintezza_ManagerDB
+
+Locale.lua
+Core.lua
+Style.lua
+WindowSize.lua
+Window.lua
+Launcher.lua

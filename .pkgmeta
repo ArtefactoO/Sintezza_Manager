@@ -1,0 +1,9 @@
+package-as: Sintezza_Manager
+manual-changelog:
+  filename: CHANGELOG.md
+  markup-type: markdown
+optional-dependencies:
+  - 1810657-sintezza-theme
+ignore:
+  - Docs/CurseForge
+  - Tests

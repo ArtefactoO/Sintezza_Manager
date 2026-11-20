@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sintezza Addons Manager · CurseForge</title>
+<style>
+:root { color-scheme: light dark; }
+body { font: 1rem/1.5 system-ui, sans-serif; margin: 0 auto; padding: 1.5rem; max-width: 54rem; }
+h1, h2 { line-height: 1.2; }
+section { margin-top: 1.75rem; }
+table { border-collapse: collapse; }
+th, td { text-align: left; vertical-align: top; padding: .35rem .6rem; border-bottom: 1px solid GrayText; }
+button { font: inherit; padding: .35rem .7rem; }
+textarea { display: block; font: .95rem/1.5 monospace; width: 100%; box-sizing: border-box; resize: vertical; margin: .7rem 0; padding: .6rem; }
+[role="status"] { margin-left: .6rem; }
+#changelog { border-top: 1px solid GrayText; padding-top: .5rem; }
+</style>
+</head>
+<body>
+<main>
+<h1>Sintezza Addons Manager</h1>
+<table aria-label="Поля CurseForge">
+<tbody>
+<tr><th scope="row">Game</th><td>World of Warcraft</td></tr>
+<tr><th scope="row">Class</th><td>Addons</td></tr>
+<tr><th scope="row">Flavor and version</th><td>Forever 1.60.1</td></tr>
+<tr><th scope="row">Main category</th><td>Miscellaneous</td></tr>
+<tr><th scope="row">Additional categories</th><td>Development Tools</td></tr>
+<tr><th scope="row">CurseForge relations</th><td>Sintezza Theme (Optional Dependency)</td></tr>
+<tr><th scope="row">Project license</th><td>MIT License</td></tr>
+<tr><th scope="row">Release type</th><td>Release</td></tr>
+<tr><th scope="row">Display name</th><td>Sintezza Addons Manager 0.1.0 (Forever)</td></tr>
+</tbody>
+</table>
+<section aria-labelledby="summary-title">
+<h2 id="summary-title">Summary</h2>
+<textarea id="summary" aria-labelledby="summary-title" lang="en" rows="2" readonly>Enable and disable addons, browse module groups, and save addon profiles in WoW Forever.</textarea>
+<button type="button" data-copy="summary">Копировать Summary</button><span role="status"></span>
+</section>
+<section aria-labelledby="description-title">
+<h2 id="description-title">Description</h2>
+<p>Вставь в поле Description в режиме Markdown.</p>
+<textarea id="description" aria-labelledby="description-title" lang="en" rows="15" readonly>Open **Esc → Sintezza Addons Manager** or type `/smanager` to manage your installed addons in WoW Forever. Save different addon sets for raiding, dungeons, or everyday play and load them on any character.
+
+### Find addons and manage modules
+
+![Addon list with an expanded module group, current states, and the profile controls](https://raw.githubusercontent.com/ArtefactoO/Sintezza_Manager/main/Docs/CurseForge/01-addon-list.png)
+
+The AddOns tab keeps modules under their parent and shows how many are disabled.
+
+Search by name or filter by category and state. Click a checkbox to stage a change, or right-click a group to change all its modules. Required dependencies are included when needed. **Apply** shows the full list of changes before reloading the interface.
+
+### Save and reuse addon sets
+
+Use **Save** to store the list as an account-wide profile. **Load** stages that profile for the current character. The **Profiles** tab shows each saved set and lets you rename or duplicate it. Profiles are loaded manually.
+
+### Appearance
+
+[Sintezza Theme](https://www.curseforge.com/wow/addons/sintezza-theme) is optional. If you use it, open `/stheme` to choose the palette, fonts and shared window settings. The manager window can be resized in either mode. English and Russian are available.</textarea>
+<button type="button" data-copy="description">Копировать Description</button><span role="status"></span>
+</section>
+<section id="changelog" aria-labelledby="changelog-title">
+<h2 id="changelog-title">Changelog</h2>
+<p>Вставь в отдельное поле Changelog файла выпуска.</p>
+<textarea id="release-notes" aria-labelledby="changelog-title" lang="en" rows="6" readonly>### Changelog
+
+[View the release history on GitHub](https://github.com/ArtefactoO/Sintezza_Manager/blob/main/CHANGELOG.md).
+
+Source, installation details, and credits are available on [GitHub](https://github.com/ArtefactoO/Sintezza_Manager).</textarea>
+<button type="button" data-copy="release-notes">Копировать Changelog</button><span role="status"></span>
+</section>
+</main>
+<script>
+for (const button of document.querySelectorAll("[data-copy]")) {
+  button.addEventListener("click", async () => {
+    const field = document.getElementById(button.dataset.copy);
+    const status = button.nextElementSibling;
+    try {
+      await navigator.clipboard.writeText(field.value);
+      status.textContent = "Скопировано.";
+    } catch {
+      field.focus();
+      field.select();
+      status.textContent = "Текст выделен. Нажми Ctrl+C.";
+    }
+  });
+}
+</script>
+</body>
+</html>
