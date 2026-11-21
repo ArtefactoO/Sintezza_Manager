@@ -10,7 +10,7 @@
 | CurseForge relations | Sintezza Theme (Optional Dependency) |
 | Project license | MIT License |
 | Release type | Release |
-| Display name | Sintezza Addons Manager 0.1.0 (Forever) |
+| Display name | Sintezza Addons Manager 0.1.1 (Forever) |
 
 ## Summary
 

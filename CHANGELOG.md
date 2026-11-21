@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.1
+
+- Show all addons by default and update checkboxes immediately when changes are staged.
+
 ## 0.1.0
 
 - Add a searchable addon list with modules grouped under their parent addon and an initial Disabled filter.

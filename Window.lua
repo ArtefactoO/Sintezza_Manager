@@ -3,7 +3,7 @@ local S, L = ns.Style, ns.Text
 local T = S.palette
 local size = ns.WindowSize
 local window, popup, selected, quickProfile, category, notice
-local filter = "disabled"
+local filter = "all"
 local page = "addons"
 local Draw, SetPage, OpenProfileMenu
 local ADDON_ROW_HEIGHT = 28
@@ -196,7 +196,7 @@ local function AddonRow(parent)
                 .. "\n" .. L("Right-click for group actions.", "ПКМ открывает действия для группы.")
         end
         if owner == row.box then
-            hint = hint .. "\n" .. L("The checkmark shows the current state.", "Галочка показывает текущее состояние.")
+            hint = hint .. "\n" .. L("The checkmark shows the state to apply.", "Галочка показывает состояние после применения.")
         end
         S.Tooltip(owner, data.title, hint)
     end
@@ -223,7 +223,7 @@ local function PaintAddon(row, item, index)
     row.disclosure.arrow:SetExpanded(not item.collapsed)
     row.box:ClearAllPoints()
     row.box:SetPoint("LEFT", 28 + inset, 0)
-    row.box:SetChecked(applied and not item.missing)
+    row.box:SetChecked(enabled and not item.missing)
     row.box:SetEnabled(not data.locked and not item.missing)
     row.box:SetAlpha((data.locked or item.missing) and .45 or 1)
     local group = item.off ~= nil

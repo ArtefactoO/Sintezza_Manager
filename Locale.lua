@@ -36,4 +36,4 @@ end
 
 local metadata = C_AddOns and C_AddOns.GetAddOnMetadata
 local version = metadata and metadata(addon, "Version")
-ns.version = ns.Readable(version) and version:match("^%d") and version or "0.1.0"
+ns.version = ns.Readable(version) and version:match("^%d") and version or "0.1.1"

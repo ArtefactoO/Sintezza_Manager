@@ -1,4 +1,7 @@
 local M = Mock
+local toc = assert(io.open(ADDON_ROOT .. "/Sintezza_Manager.toc", "r"))
+local version = assert(toc:read("*a"):match("## Version:%s*([^%s]+)"))
+toc:close()
 local methods = getmetatable(UIParent).__index
 function methods:SetEnabled(enabled) if enabled then self:Enable() else self:Disable() end end
 function methods:SetCheckedTexture(texture) self.checkTexture = texture end
@@ -152,7 +155,7 @@ C_AddOns = {
         return row.id, row.title, nil, true, nil, row.security or "INSECURE"
     end,
     GetAddOnMetadata = function(index, key)
-        if key == "Version" and index == "Sintezza_Manager" then return "0.1.0" end
+        if key == "Version" and index == "Sintezza_Manager" then return version end
         local row = Addon(index)
         if key == "Category" then return row.category end
         if key == "Group" then return row.group end
@@ -201,6 +204,11 @@ Settings = {
     end,
 }
 local ns = {}
+local addonAPI, fallback = C_AddOns, {}
+C_AddOns = nil
+assert(loadfile(ADDON_ROOT .. "/Locale.lua"))("Sintezza_Manager", fallback)
+C_AddOns = addonAPI
+assert(fallback.version == version)
 for _, file in ipairs({"Locale.lua", "Core.lua", "Style.lua", "WindowSize.lua", "Window.lua", "Launcher.lua"}) do
     assert(loadfile(ADDON_ROOT .. "/" .. file))("Sintezza_Manager", ns)
 end
@@ -243,7 +251,7 @@ assert(frame.cancel.text:GetText() == (russian and "Отменить" or "Cancel
 assert(not frame.apply:IsShown() and not frame.cancel:IsShown())
 assert(not not frame.themeSurface == not not THEME_LOCALE)
 assert(frame.header.title:GetText() == "Sintezza Addons Manager")
-assert(frame.header.version:GetText() == "v0.1.0")
+assert(frame.header.version:GetText() == "v" .. version)
 assert(frame.header.version.points[1][2] == frame.header.title)
 assert(not THEME_LOCALE or frame.profiles.details.themeSurface == "sidebar")
 assert(frame.quick:IsVisible() and frame.addonPage:IsVisible() and not frame.profiles:IsVisible())
@@ -291,6 +299,15 @@ local function FindAddon(id)
         if row:IsShown() and row.item.row.id == id then return row end
     end
 end
+frame.search:SetText("NewAddon")
+local enabledRow = assert(FindAddon("NewAddon"), "the default filter must include enabled standalone addons")
+assert(enabledRow.box:GetChecked())
+enabledRow.box:Click()
+assert(not enabledRow.box:GetChecked() and enabledRow.changeArrow:IsShown())
+assert(states.Mira.NewAddon and #writes == 0)
+enabledRow.box:Click()
+assert(enabledRow.box:GetChecked() and not enabledRow.changeArrow:IsShown())
+frame.search:SetText("")
 local group = assert(FindAddon("EllesmereUI"))
 assert(group.disclosure:IsShown() and group.count:GetText() == (russian and "3/5 выкл." or "3/5 off"))
 assert(group.disclosure:GetWidth() == 23 and group.disclosure:GetHeight() == 28)
@@ -317,7 +334,7 @@ menuEntries[russian and "Включить все модули" or "Enable all mo
 assert(ns.draft.ellesmereuibags and ns.draft.ellesmereuichat and ns.draft.ellesmereuiraidframes)
 assert(#writes == 0 and saves == 0)
 FindAddon("EllesmereUI").disclosure:Click()
-assert(not FindAddon("EllesmereUIBags").box:GetChecked())
+assert(FindAddon("EllesmereUIBags").box:GetChecked())
 local bags = FindAddon("EllesmereUIBags")
 assert(bags.state:GetText() == (russian and "ВЫКЛ" or "OFF"))
 assert(bags.changeArrow:IsShown() and bags.nextState:IsShown())
@@ -334,7 +351,7 @@ menuEntries[russian and "Отключить все модули" or "Disable all
 assert(ns.draft.ellesmereui and not ns.draft.ellesmereuibags and not ns.draft.ellesmereuichat
     and not ns.draft.ellesmereuiraidframes and #writes == 0)
 assert(not ns.draft.ellesmereuiactionbars and not ns.draft.ellesmereuioptions)
-assert(FindAddon("EllesmereUIActionBars").box:GetChecked())
+assert(not FindAddon("EllesmereUIActionBars").box:GetChecked())
 local bars = FindAddon("EllesmereUIActionBars")
 assert(bars.state:GetText() == (russian and "ВКЛ" or "ON"))
 assert(bars.changeArrow:IsShown() and bars.nextState:IsShown())
