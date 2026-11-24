@@ -45,25 +45,21 @@ end
 
 local function GameMenu()
     local menu = GameMenuFrame
-    if hookedMenu or not menu or type(menu.InitButtons) ~= "function" or type(menu.AddButton) ~= "function" then return end
+    if hookedMenu or not menu or type(menu.InitButtons) ~= "function" then return end
     hookedMenu = true
     hooksecurefunc(menu, "InitButtons", function(self)
         if InCombatLockdown() then return end
-        local native
         for _, button in ipairs(self.buttons or {}) do
-            if button:GetText() == ADDONS then native = button; break end
-        end
-        if not native or not native:IsEnabled() then return end
-        local button = self:AddButton(ns.title, function()
-            if InCombatLockdown() then
-                Report(L("You can open the manager after combat.", "Менеджер можно открыть после боя."))
+            if button:GetText() == ADDONS and button:IsEnabled() then
+                local native = button:GetScript("OnClick")
+                if not native then return end
+                button:SetScript("OnClick", function(...)
+                    if InCombatLockdown() or not ns.Open() then return native(...) end
+                    PlaySound(SOUNDKIT.IG_MAINMENU_OPTION)
+                    HideUIPanel(self)
+                end)
                 return
             end
-            HideUIPanel(self)
-            Open()
-        end)
-        if type(native.layoutIndex) == "number" and type(button.layoutIndex) == "number" then
-            button.layoutIndex = native.layoutIndex + .5
         end
     end)
 end

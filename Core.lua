@@ -53,6 +53,23 @@ local function ReadState(id, guid)
     return state > Enum.AddOnEnableState.None
 end
 
+local function ReadAllowOutdated()
+    local get, set = C_AddOns.IsAddonVersionCheckEnabled, C_AddOns.SetAddonVersionCheck
+    if type(get) ~= "function" or type(set) ~= "function" then return end
+    local ok, checked = pcall(get)
+    if ok and (not issecretvalue or not issecretvalue(checked)) and type(checked) == "boolean" then
+        return not checked
+    end
+end
+
+local function IsOutdated(index, reason, clientInterface)
+    if ns.Readable(reason) and reason == "INTERFACE_VERSION" then return true end
+    if not clientInterface or not C_AddOns.GetAddOnInterfaceVersion then return false end
+    local interface = C_AddOns.GetAddOnInterfaceVersion(index)
+    return (not issecretvalue or not issecretvalue(interface))
+        and type(interface) == "number" and interface > 0 and interface < clientInterface
+end
+
 local function GroupAddons(catalog)
     local function ParentFor(row, key)
         local parent = catalog.entries[key]
@@ -82,10 +99,19 @@ local function GroupAddons(catalog)
     end
 end
 
+local function ReadIconMetadata(index, field)
+    local value = C_AddOns.GetAddOnMetadata(index, field)
+    if not ns.Readable(value) then return end
+    value = ns.Trim(value)
+    if value ~= "" then return value end
+end
+
 local function ReadCatalog(guid)
     local catalog = {rows = {}, entries = {}, states = {}, dependents = {}, categories = {}}
+    catalog.allowOutdated = ReadAllowOutdated()
+    local _, _, _, clientInterface = GetBuildInfo()
     for index = 1, C_AddOns.GetNumAddOns() do
-        local id, title, _, _, _, security = C_AddOns.GetAddOnInfo(index)
+        local id, title, _, _, reason, security = C_AddOns.GetAddOnInfo(index)
         if ns.Readable(id) and id ~= "" then
             local key = ns.Key(id)
             local secure, banned = false, false
@@ -97,6 +123,8 @@ local function ReadCatalog(guid)
             local row = {
                 id = id, key = key, title = label ~= "" and label or id, category = category,
                 group = ns.Readable(group) and ns.Key(ns.Trim(group)) or nil,
+                iconTexture = ReadIconMetadata(index, "IconTexture"), iconAtlas = ReadIconMetadata(index, "IconAtlas"),
+                outdated = IsOutdated(index, reason, clientInterface),
                 secure = secure, banned = banned, locked = key == ownKey or secure or banned,
                 needs = {}, children = {},
             }
@@ -126,7 +154,7 @@ local function ReadCatalog(guid)
 end
 
 local function SameCatalog(a, b)
-    if not a or #a.rows ~= #b.rows then return false end
+    if not a or #a.rows ~= #b.rows or a.allowOutdated ~= b.allowOutdated then return false end
     for key, row in pairs(a.entries) do
         local fresh = b.entries[key]
         if not fresh or a.states[key] ~= b.states[key] or row.locked ~= fresh.locked
@@ -158,7 +186,7 @@ function ns.Refresh()
     if not fresh then return false, message end
     local changed = ns.guid ~= guid or not SameCatalog(ns.catalog, fresh)
     ns.guid, ns.catalog = guid, fresh
-    if changed then ns.draft = Copy(fresh.states) end
+    if changed then ns.Reset() end
     ns.character = ns.Plain(UnitName("player"))
     return true, nil, changed
 end
@@ -238,6 +266,7 @@ end
 
 function ns.Reset()
     ns.draft = Copy(ns.catalog.states)
+    ns.allowOutdated = ns.catalog.allowOutdated
 end
 
 function ns.Changes(base)
@@ -350,6 +379,11 @@ local function WriteState(row, guid, enabled)
     return ok and read and actual == enabled
 end
 
+local function WriteAllowOutdated(allowed)
+    local ok = pcall(C_AddOns.SetAddonVersionCheck, not allowed)
+    return ok and ReadAllowOutdated() == allowed
+end
+
 local function OrderChanges(changed)
     local affected, seen, ordered = {}, {}, {}
     for _, row in ipairs(changed) do affected[row.key] = row end
@@ -378,7 +412,8 @@ function ns.Apply()
         return false, L("The addon list changed. Review it before applying again.", "Список аддонов изменился. Проверьте его перед применением.")
     end
     local changed = ns.Changes(fresh.states)
-    if #changed == 0 then return false end
+    local versionChanged = ns.allowOutdated ~= fresh.allowOutdated
+    if #changed == 0 and not versionChanged then return false end
     local written, ok = {}, true
     for _, row in ipairs(OrderChanges(changed)) do
         written[#written + 1] = row
@@ -387,6 +422,8 @@ function ns.Apply()
             break
         end
     end
+    local attemptedVersionCheck = ok and versionChanged
+    if attemptedVersionCheck then ok = WriteAllowOutdated(ns.allowOutdated) end
     local attemptedSave = ok
     if ok then ok = pcall(C_AddOns.SaveAddOns) end
     if not ok then
@@ -395,6 +432,7 @@ function ns.Apply()
             local row = written[index]
             if not WriteState(row, guid, fresh.states[row.key]) then restored = false end
         end
+        if attemptedVersionCheck and not WriteAllowOutdated(fresh.allowOutdated) then restored = false end
         if attemptedSave and not pcall(C_AddOns.SaveAddOns) then restored = false end
         if restored then
             return false, L("Couldn't apply changes. The previous state was restored.", "Не удалось применить правки. Прежнее состояние восстановлено.")
@@ -403,6 +441,7 @@ function ns.Apply()
         return false, L("Couldn't fully restore the addon state. Check the list before reloading.", "Не удалось полностью восстановить состояние аддонов. Проверьте список перед перезагрузкой.")
     end
     ns.catalog.states = Copy(ns.draft)
+    ns.catalog.allowOutdated = ns.allowOutdated
     if not pcall(ReloadUI) then
         return false, L("Changes were saved. Run /reload to finish.", "Правки сохранены. Выполните /reload, чтобы завершить применение.")
     end

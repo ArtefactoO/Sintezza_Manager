@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.0
+
+- Show each addon's declared icon beside its name in the AddOns list.
+- Open the manager from the built-in AddOns button in the game menu.
+- Mark out-of-date addons and let players stage the game's load out-of-date addons setting alongside individual addon changes.
+
 ## 0.1.1
 
 - Show all addons by default and update checkboxes immediately when changes are staged.

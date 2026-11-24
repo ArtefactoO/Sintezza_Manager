@@ -132,13 +132,17 @@ local function AddonRow(parent)
         end
     end)
     row.box = S.CheckButton(row)
+    row.icon = row:CreateTexture(nil, "ARTWORK")
+    row.icon:SetSize(18, 18)
+    row.icon:SetPoint("LEFT", row.box, "RIGHT", 6, 0)
     row.name = S.Label(row, "", 13, T.text)
     row.name:SetWordWrap(false)
     row.count = S.Label(row, "", 12, T.muted)
     row.count:SetPoint("RIGHT", -113, 0)
     row.state = S.Label(row, "", 12, T.muted)
-    row.state:SetPoint("LEFT", row, "RIGHT", -104, 0)
     row.state:SetWordWrap(false)
+    row.outdated = S.Label(row, L("Outdated", "Устарел"), 10, T.muted)
+    row.outdated:SetPoint("TOPLEFT", row.state, "BOTTOMLEFT", 0, 1)
     if S.widgets and T.DisclosureArrow then
         row.changeArrow = T:DisclosureArrow(row, 10, T.muted)
         row.changeArrow:SetExpanded(false)
@@ -188,6 +192,9 @@ local function AddonRow(parent)
             requirements[#requirements + 1] = dep and dep.title or need.id
         end
         local hint = data.id
+        if data.outdated then
+            hint = hint .. "\n" .. L("This addon targets an older interface.", "Аддон рассчитан на старую версию интерфейса.")
+        end
         if #requirements > 0 then
             hint = hint .. "\n" .. L("Requires: %s", "Требуются: %s"):format(table.concat(requirements, ", "))
         end
@@ -208,6 +215,20 @@ local function AddonRow(parent)
     return row
 end
 
+local function PaintAddonIcon(icon, data)
+    local texture, atlas = data.iconTexture, data.iconAtlas
+    if texture and icon:SetTexture(tonumber(texture) or texture) then
+        icon:SetTexCoord(0, 1, 0, 1)
+        icon:Show()
+    elseif atlas and C_Texture and C_Texture.GetAtlasInfo and C_Texture.GetAtlasInfo(atlas) then
+        icon:SetAtlas(atlas, false)
+        icon:Show()
+    else
+        icon:SetTexture(nil)
+        icon:Hide()
+    end
+end
+
 local function PaintAddon(row, item, index)
     row.item = item
     if row.band then row.band:SetShown(index % 2 == 0) end
@@ -226,6 +247,7 @@ local function PaintAddon(row, item, index)
     row.box:SetChecked(enabled and not item.missing)
     row.box:SetEnabled(not data.locked and not item.missing)
     row.box:SetAlpha((data.locked or item.missing) and .45 or 1)
+    PaintAddonIcon(row.icon, data)
     local group = item.off ~= nil
     row.count:SetShown(group)
     if group then
@@ -233,7 +255,7 @@ local function PaintAddon(row, item, index)
             or L("%d on", "%d вкл."):format(item.on))
     end
     row.name:ClearAllPoints()
-    row.name:SetPoint("LEFT", row.box, "RIGHT", 7, 0)
+    row.name:SetPoint("LEFT", row.icon, "RIGHT", 6, 0)
     row.name:SetPoint("RIGHT", -116 - (group and row.count:GetStringWidth() + 7 or 0), 0)
     row.name:SetText(data.title or data.id)
     S.Tint(row.name, "SetTextColor", item.depth > 0 and T.muted or T.text)
@@ -241,6 +263,8 @@ local function PaintAddon(row, item, index)
     row.branch:SetPoint("TOPLEFT", row, "TOPLEFT", inset - 9, 0)
     row.branch:SetShown(item.depth > 0)
     row.elbow:SetShown(item.depth > 0)
+    row.state:SetPoint("LEFT", row, "RIGHT", -104, data.outdated and 5 or 0)
+    row.outdated:SetShown(data.outdated == true)
     local state, nextState
     if item.missing then state = L("Missing", "Не установлен")
     elseif data.banned then state = L("Blocked", "Заблокирован")
@@ -613,6 +637,9 @@ Draw = function(top)
         window.category.text:SetText(category or (window.compact and L("Categories", "Категории")
             or L("All categories", "Все категории")))
         for _, button in ipairs(window.filters) do S.Selected(button, button.filter == filter) end
+        window.allowOutdated:SetShown(ns.allowOutdated ~= nil)
+        window.allowOutdated.label:SetShown(ns.allowOutdated ~= nil)
+        window.allowOutdated:SetChecked(ns.allowOutdated == true)
         local query = window.search:GetText()
         local rows = ns.VisibleRows(query, filter, category)
         window.addons:Set(rows, top)
@@ -625,18 +652,24 @@ Draw = function(top)
     end
 
     local changes = ns.Changes(ns.catalog.states)
+    local versionChanged = ns.allowOutdated ~= ns.catalog.allowOutdated
+    local pending = #changes > 0 or versionChanged
     local blocked = ns.ApplyBlock()
     if notice == ns.combatMessage and blocked ~= notice then notice = nil end
     local counts, enabled = {}, 0
     for _, row in ipairs(changes) do if ns.draft[row.key] then enabled = enabled + 1 end end
     if enabled > 0 then counts[#counts + 1] = L("enable %d", "включить %d"):format(enabled) end
     if #changes > enabled then counts[#counts + 1] = L("disable %d", "отключить %d"):format(#changes - enabled) end
-    local message = notice or (#changes > 0 and blocked)
+    if versionChanged then
+        counts[#counts + 1] = ns.allowOutdated and L("allow outdated", "разрешить устаревшие")
+            or L("block outdated", "запретить устаревшие")
+    end
+    local message = notice or (pending and blocked)
     local summary = #counts > 0 and L("Pending: %s", "К применению: %s"):format(table.concat(counts, " · "))
         or L("No changes", "Нет изменений")
-    window.summary:SetText(message and (#changes > 0 and (message .. "\n" .. summary) or message) or summary)
-    window.cancel:SetShown(#changes > 0)
-    window.apply:SetShown(#changes > 0 and not blocked)
+    window.summary:SetText(message and (pending and (message .. "\n" .. summary) or message) or summary)
+    window.cancel:SetShown(pending)
+    window.apply:SetShown(pending and not blocked)
 end
 
 local function LayoutWidth(frame, width)
@@ -750,6 +783,25 @@ local function Build()
     buttons[2]:SetPoint("LEFT", buttons[1], "RIGHT", 4, 0)
     buttons[3]:SetPoint("LEFT", buttons[2], "RIGHT", 4, 0)
 
+    local allowOutdated = S.CheckButton(frame.addonPage)
+    frame.allowOutdated = allowOutdated
+    local label = S.Label(frame.addonPage, L("Load out-of-date addons", "Загружать устаревшие аддоны"), 12)
+    allowOutdated.label = label
+    label:SetPoint("RIGHT", frame.category, "RIGHT", 0, -30)
+    allowOutdated:SetPoint("RIGHT", label, "LEFT", -6, 0)
+    allowOutdated:SetHitRectInsets(0, -(label:GetStringWidth() + 6), 0, 0)
+    allowOutdated:SetScript("OnClick", function(self)
+        ns.allowOutdated = self:GetChecked() == true
+        notice = nil
+        Draw()
+    end)
+    allowOutdated:HookScript("OnEnter", function(self)
+        S.Tooltip(self, label:GetText(), L("Applies to all characters after you choose Apply.",
+            "Действует для всех персонажей после нажатия «Применить»."))
+    end)
+    allowOutdated:HookScript("OnLeave", S.HideTooltip)
+    allowOutdated:HookScript("OnHide", S.HideTooltip)
+
     local listPanel = CreateFrame("Frame", nil, frame.addonPage)
     listPanel:SetPoint("TOPLEFT", buttons[1], "BOTTOMLEFT", 0, -4)
     listPanel:SetPoint("BOTTOMRIGHT")
@@ -776,11 +828,17 @@ local function Build()
     frame.apply = Button(frame, L("Apply", "Применить"), 106, function()
         local blocked = ns.ApplyBlock()
         if blocked then notice = blocked; Draw(); return end
-        Confirm(L("Before reloading", "Перед перезагрузкой"),
-            L("These addon changes apply to %s after reloading the interface.",
-                "Правки вступят в силу для персонажа %s после перезагрузки интерфейса."):format(ns.character),
+        local changes = ns.Changes(ns.catalog.states)
+        local hint = L("These addon changes apply to %s after reloading the interface.",
+            "Правки вступят в силу для персонажа %s после перезагрузки интерфейса."):format(ns.character)
+        if ns.allowOutdated ~= ns.catalog.allowOutdated then
+            local policy = ns.allowOutdated and L("Allow outdated addons for all characters.", "Разрешить устаревшие аддоны для всех персонажей.")
+                or L("Block outdated addons for all characters.", "Запретить устаревшие аддоны для всех персонажей.")
+            hint = #changes > 0 and (hint .. "\n" .. policy) or policy
+        end
+        Confirm(L("Before reloading", "Перед перезагрузкой"), hint,
             L("Apply and reload", "Применить и перезагрузить"),
-            ns.Changes(ns.catalog.states), false, ns.Apply)
+            changes, false, ns.Apply)
     end, true)
     frame.apply:SetPoint("BOTTOMRIGHT", -25, 10)
     frame.cancel = Button(frame, L("Cancel", "Отменить"), 106, function()

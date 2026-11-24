@@ -2,7 +2,7 @@
 
 ![Sintezza Addons Manager logo](Docs/CurseForge/Logo.png)
 
-Manage your WoW Forever addons and share addon sets across characters. Open **Sintezza Addons Manager** from the game menu (**Esc**), Settings → AddOns, or `/smanager`.
+Manage your WoW Forever addons and share addon sets across characters. Open **Sintezza Addons Manager** from **Esc → AddOns**, Settings → AddOns, or `/smanager`.
 
 ![Addon list with an expanded module group, current states, and the profile controls](Docs/CurseForge/01-addon-list.png)
 
@@ -11,6 +11,8 @@ The AddOns tab keeps modules under their parent and shows how many are disabled.
 The list starts with the All filter. Addons appear once, with modules grouped under their declared parent or an installed required dependency. A state filter includes a group when its parent or a module matches. An expanded group shows both enabled and disabled modules within the current search and category. Hover an addon to see its required dependencies. The checkbox updates as you edit the draft, and the status column shows the current state and any pending change. Choose **Apply** to review your changes and confirm the reload. The manager includes required dependencies when enabling an addon and accounts for dependents when disabling one.
 
 Use the disclosure arrow to collapse a group. The counter shows how many modules are off out of the total, or how many are on when all are enabled. Search by title or folder name to temporarily open branches with matching modules. Right-click a group to stage a change for all its modules.
+
+Outdated addons are marked in the status column and have the same per-character checkboxes as other addons. **Load out-of-date addons** controls WoW's version check for all characters. Choose **Apply** to save this setting and reload.
 
 Choose a profile in the **AddOns** tab and select **Load** to stage its set for the current character. If a different draft is pending, the manager asks before replacing it. **Apply** sets up the addon's choices for the current character and reloads after confirmation. **Save** writes the list, including pending edits, back to the selected profile. Choose **New profile…** to save a separate set. Saved profiles are shared across the account, and each character loads them manually. Newly installed addons keep their current state unless a required dependency needs a change.
 

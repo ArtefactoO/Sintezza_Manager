@@ -6,6 +6,19 @@ local methods = getmetatable(UIParent).__index
 function methods:SetEnabled(enabled) if enabled then self:Enable() else self:Disable() end end
 function methods:SetCheckedTexture(texture) self.checkTexture = texture end
 function methods:SetDesaturated(value) self.desaturated = value end
+local missingIcon = "Interface\\AddOns\\Missing\\Icon"
+local knownAtlas = "gmchat-icon-blizz"
+function methods:SetTexture(texture)
+    if texture == missingIcon then return false end
+    self.texture, self.atlas = texture, nil
+    return texture ~= nil
+end
+function methods:SetAtlas(atlas, useAtlasSize)
+    assert(atlas == knownAtlas and not useAtlasSize)
+    self.texture, self.atlas = nil, atlas
+    self:SetTexCoord(.2, .3, .4, .5)
+end
+C_Texture = {GetAtlasInfo = function(atlas) if atlas == knownAtlas then return {} end end}
 function methods:SetMaxLines(lines) self.maxLines = lines end
 function methods:UpdateScrollChildRect() end
 function methods:EnableMouseMotion() end
@@ -18,6 +31,7 @@ function methods:GetTop() return self == UIParent and 1080 or 800 end
 function methods:GetBottom() return self:GetTop() - self:GetHeight() end
 function methods:SetResizable(value) self.resizable = value end
 function methods:SetResizeBounds(...) self.resizeBounds = {...} end
+function methods:SetHitRectInsets(...) self.hitInsets = {...} end
 function methods:StartSizing(point)
     assert(self.resizable and not InCombatLockdown())
     self.sizing = point
@@ -26,6 +40,7 @@ local cursorX, cursorY = 1000, 300
 function GetCursorPosition() return cursorX, cursorY end
 function GetScreenWidth() return 1920 end
 function GetScreenHeight() return 1080 end
+function GetBuildInfo() return "1.60.1", "70959", "", 16001 end
 function GetRealmName() return "Forever" end
 function HideUIPanel(frame) frame:Hide() end
 function hooksecurefunc(frame, key, after)
@@ -127,6 +142,15 @@ local fixtures = {
 }
 local indexed = {}
 for _, row in ipairs(fixtures) do indexed[row.id] = row end
+local groupIcon = "Interface\\AddOns\\EllesmereUI\\media\\eg-logo.tga"
+indexed.EllesmereUI.IconTexture = groupIcon
+indexed.EllesmereUIBags.IconAtlas = " " .. knownAtlas .. " "
+indexed.EllesmereUIActionBars.IconTexture = "133742"
+indexed.EllesmereUIActionBars.IconAtlas = knownAtlas
+indexed.EllesmereUIRaidFrames.IconTexture = missingIcon
+indexed.EllesmereUIRaidFrames.IconAtlas = knownAtlas
+indexed.EllesmereUIChat.IconAtlas = "MissingAtlas"
+indexed.NewAddon.IconTexture = " "
 local function Addon(value) return assert(fixtures[value] or indexed[value]) end
 local function Initial()
     return {
@@ -141,6 +165,7 @@ function UnitName() return who end
 Enum = {AddOnEnableState = {None = 0, Some = 1, All = 2}}
 local writes, saves, reloads = {}, 0, 0
 local failWrite, failSave
+local versionCheck, versionWrites, failVersionWrite = true, 0, false
 local function Write(id, guid, enabled)
     assert(guid == who and not InCombatLockdown(), "write must be for the current character and outside combat")
     assert(id ~= "Sintezza_Manager" and id ~= "Blizzard_Sample", "manager and native addons are protected")
@@ -152,13 +177,23 @@ C_AddOns = {
     GetNumAddOns = function() return #fixtures end,
     GetAddOnInfo = function(index)
         local row = Addon(index)
-        return row.id, row.title, nil, true, nil, row.security or "INSECURE"
+        local reason = versionCheck and row.interface == 16000 and "INTERFACE_VERSION" or nil
+        return row.id, row.title, nil, reason == nil, reason, row.security or "INSECURE"
+    end,
+    GetAddOnInterfaceVersion = function(index) return Addon(index).interface or 16001 end,
+    IsAddonVersionCheckEnabled = function() return versionCheck end,
+    SetAddonVersionCheck = function(checked)
+        assert(not InCombatLockdown() and type(checked) == "boolean")
+        versionWrites = versionWrites + 1
+        versionCheck = checked
+        if failVersionWrite then failVersionWrite = false; error("partial version change") end
     end,
     GetAddOnMetadata = function(index, key)
         if key == "Version" and index == "Sintezza_Manager" then return version end
         local row = Addon(index)
         if key == "Category" then return row.category end
         if key == "Group" then return row.group end
+        return row[key]
     end,
     GetAddOnDependencies = function(index) return unpack(Addon(index).needs or {}) end,
     GetAddOnEnableState = function(id, guid)
@@ -174,20 +209,27 @@ C_AddOns = {
 }
 function ReloadUI() reloads = reloads + 1 end
 
-ADDONS = russian and "Аддоны" or "AddOns"
+ADDONS = TEST_LOCALE == "ruRU" and "Модификации" or "AddOns"
+SOUNDKIT = {IG_MAINMENU_OPTION = 1}
+function PlaySound() end
 GameMenuFrame = CreateFrame("Frame")
+local menuButtons = {}
 function GameMenuFrame:AddButton(text, action)
-    local button = CreateFrame("Button", nil, self)
+    local index = #self.buttons + 1
+    local button = menuButtons[index] or CreateFrame("Button", nil, self)
+    menuButtons[index] = button
     button:SetText(text)
     button:SetScript("OnClick", action)
-    self.buttons[#self.buttons + 1] = button
-    button.layoutIndex = #self.buttons
+    button:Enable()
+    self.buttons[index] = button
+    button.layoutIndex = index
     return button
 end
 function GameMenuFrame:InitButtons()
     self.buttons = {}
     self:AddButton("Options", function() end)
     self:AddButton(ADDONS, function() self.nativeClicked = true end)
+    self.buttons[2]:SetEnabled(not self.lockAddons)
     self:AddButton("Return", function() end)
 end
 AddonList = CreateFrame("Frame")
@@ -232,18 +274,31 @@ assert(ns.db.links.Mira.profile == "ZLegacy" and not states.Mira.Vendor and #wri
 
 GameMenuFrame:InitButtons()
 GameMenuFrame:InitButtons()
-assert(#GameMenuFrame.buttons == 4)
-assert(GameMenuFrame.buttons[4]:GetText() == ns.title and GameMenuFrame.buttons[4].layoutIndex == 2.5)
-GameMenuFrame.buttons[2]:Click()
-assert(GameMenuFrame.nativeClicked)
-M.combat = true
-GameMenuFrame:InitButtons()
 assert(#GameMenuFrame.buttons == 3)
+assert(GameMenuFrame.buttons[2]:GetText() == ADDONS and GameMenuFrame.buttons[2].layoutIndex == 2)
+C_AddOns = nil
+GameMenuFrame.buttons[2]:Click()
+assert(GameMenuFrame.nativeClicked and not SintezzaManagerWindow)
+C_AddOns = addonAPI
+GameMenuFrame.nativeClicked = nil
+M.combat = true
+GameMenuFrame.buttons[2]:Click()
+assert(GameMenuFrame.nativeClicked and not SintezzaManagerWindow)
+GameMenuFrame.nativeClicked = nil
+GameMenuFrame:InitButtons()
+GameMenuFrame.buttons[2]:Click()
+assert(GameMenuFrame.nativeClicked and not SintezzaManagerWindow)
 M.combat = false
+GameMenuFrame.nativeClicked = nil
+GameMenuFrame.lockAddons = true
+GameMenuFrame:InitButtons()
+GameMenuFrame.buttons[2]:Click()
+assert(not GameMenuFrame.nativeClicked and not SintezzaManagerWindow)
+GameMenuFrame.lockAddons = false
 GameMenuFrame:InitButtons()
 GameMenuFrame:Show()
-GameMenuFrame.buttons[4]:Click()
-assert(not GameMenuFrame:IsShown() and SintezzaManagerWindow:IsShown())
+GameMenuFrame.buttons[2]:Click()
+assert(not GameMenuFrame.nativeClicked and not GameMenuFrame:IsShown() and SintezzaManagerWindow:IsShown())
 M.layout()
 local frame = SintezzaManagerWindow
 assert(frame.search ~= nil and frame.apply.text:GetText() == (russian and "Применить" or "Apply"))
@@ -299,8 +354,24 @@ local function FindAddon(id)
         if row:IsShown() and row.item.row.id == id then return row end
     end
 end
+frame.search:SetText("EllesmereUI Bags")
+local suiteIcon = assert(FindAddon("EllesmereUI")).icon
+assert(suiteIcon:IsShown() and suiteIcon.texture == groupIcon and suiteIcon:GetWidth() == 18)
+local moduleIcon = assert(FindAddon("EllesmereUIBags")).icon
+assert(moduleIcon:IsShown() and moduleIcon.atlas == knownAtlas)
+frame.search:SetText("EllesmereUI Action Bars")
+assert(FindAddon("EllesmereUIActionBars").icon == moduleIcon)
+assert(moduleIcon:IsShown() and moduleIcon.texture == 133742 and not moduleIcon.atlas)
+assert(table.concat(moduleIcon.texCoord, ",") == "0,1,0,1")
+frame.search:SetText("EllesmereUI Raid")
+assert(FindAddon("EllesmereUIRaidFrames").icon == moduleIcon and moduleIcon.atlas == knownAtlas)
+frame.search:SetText("EllesmereUI Chat")
+assert(FindAddon("EllesmereUIChat").icon == moduleIcon and not moduleIcon:IsShown() and not moduleIcon.atlas)
+frame.search:SetText("Missing dependency")
+assert(FindAddon("Absent").icon == moduleIcon and not moduleIcon:IsShown())
 frame.search:SetText("NewAddon")
 local enabledRow = assert(FindAddon("NewAddon"), "the default filter must include enabled standalone addons")
+assert(enabledRow.icon == suiteIcon and not suiteIcon:IsShown() and not suiteIcon.texture)
 assert(enabledRow.box:GetChecked())
 enabledRow.box:Click()
 assert(not enabledRow.box:GetChecked() and enabledRow.changeArrow:IsShown())
@@ -546,6 +617,9 @@ local searchBox, filterBox = boxes[frame.search.id], boxes[frame.category.id]
 assert(searchBox.x + searchBox.width < filterBox.x, "search and category controls must not overlap")
 assert(searchBox.y == filterBox.y, "search and category controls must share a row")
 assert(boxes[frame.filters[1].id].y > searchBox.y + searchBox.height, "status filters must be below search")
+local lastFilter, forceLoad, forceLoadLabel = boxes[frame.filters[3].id], boxes[frame.allowOutdated.id], boxes[frame.allowOutdated.label.id]
+assert(lastFilter.x + lastFilter.width < forceLoad.x and forceLoad.x + forceLoad.width < forceLoadLabel.x)
+assert(forceLoad.y >= lastFilter.y and forceLoad.y + forceLoad.height <= lastFilter.y + lastFilter.height)
 local pendingRow = assert(FindAddon("A_LittleWigs"))
 local currentBox, arrowBox, nextBox = boxes[pendingRow.state.id], boxes[pendingRow.changeArrow.id], boxes[pendingRow.nextState.id]
 assert(currentBox.x + currentBox.width < arrowBox.x and arrowBox.x + arrowBox.width < nextBox.x)
@@ -572,3 +646,49 @@ assert(ns.Refresh())
 local beforeGroup = ns.draft
 assert(not ns.SetGroupEnabled("ellesmereui", true))
 assert(ns.draft == beforeGroup and not ns.draft.ellesmereuibags and not ns.draft.ellesmereuichat)
+
+local old = {id = "OldAddon", title = "Old addon", interface = 16000}
+fixtures[#fixtures + 1], indexed[old.id] = old, old
+assert(ns.Open())
+frame.search:SetText(old.id)
+local oldRow = assert(FindAddon(old.id))
+assert(oldRow.outdated:IsShown() and oldRow.box:IsEnabled() and not oldRow.box:GetChecked())
+assert(frame.allowOutdated:IsShown() and not frame.allowOutdated:GetChecked())
+oldRow.box:Click()
+frame.allowOutdated:Click()
+assert(oldRow.box:GetChecked() and frame.allowOutdated:GetChecked())
+assert(versionCheck and versionWrites == 0 and not states[who][old.id])
+assert(ns.Refresh() and ns.draft.oldaddon and ns.allowOutdated)
+frame.apply:Click()
+assert(SintezzaManagerDialog.preview.data[1].key == "oldaddon")
+assert(SintezzaManagerDialog.hint:GetText():find(russian and "для всех персонажей" or "for all characters", 1, true))
+M.combat = true
+SintezzaManagerDialog.accept:Click()
+assert(versionCheck and versionWrites == 0 and not states[who][old.id])
+M.combat = false
+ns.Redraw()
+failVersionWrite = true
+assert(not ns.Apply() and versionCheck and versionWrites == 2 and not states[who][old.id])
+failSave = true
+assert(not ns.Apply() and versionCheck and versionWrites == 4 and not states[who][old.id])
+assert(ns.Apply() and not versionCheck and versionWrites == 5 and states[who][old.id] and not states.Mira[old.id])
+assert(ns.Open() and FindAddon(old.id).outdated:IsShown())
+local oldChecked = FindAddon(old.id).box:GetChecked()
+frame.allowOutdated:Click()
+assert(frame.apply:IsShown() and oldChecked and FindAddon(old.id).box:GetChecked())
+frame.cancel:Click()
+assert(frame.allowOutdated:GetChecked() and not frame.apply:IsShown() and versionWrites == 5)
+frame.allowOutdated:Click()
+frame.apply:Click()
+assert(#SintezzaManagerDialog.preview.data == 0)
+SintezzaManagerDialog.accept:Click()
+assert(versionCheck and versionWrites == 6 and states[who][old.id])
+oldRow.box:Click()
+assert(ns.Apply() and versionCheck and not states[who][old.id])
+frame.allowOutdated:Click()
+versionCheck = false
+assert(not ns.Apply() and versionWrites == 6 and ns.allowOutdated)
+ns.Redraw()
+assert(frame.allowOutdated:GetChecked() and not frame.cancel:IsShown())
+C_AddOns.SetAddonVersionCheck = nil
+assert(ns.Open() and not frame.allowOutdated:IsShown() and FindAddon(old.id).box:IsEnabled())
