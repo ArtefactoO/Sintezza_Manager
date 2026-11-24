@@ -258,10 +258,11 @@ function ns.SetGroupEnabled(key, enabled)
     return true
 end
 
-function ns.ToggleGroup(key)
+function ns.ToggleGroup(key, collapsed)
     local row = ns.catalog.entries[key]
     if not row or #row.children == 0 then return end
-    ns.db.collapsed[key] = not ns.db.collapsed[key] or nil
+    collapsed = collapsed or ns.db.collapsed
+    collapsed[key] = not collapsed[key] or nil
 end
 
 function ns.Reset()
@@ -448,7 +449,7 @@ function ns.Apply()
     return true
 end
 
-local function AddBranch(output, row, depth, visible, matched, searching)
+local function AddBranch(output, row, depth, visible, matched, collapsed)
     if not visible[row.key] then return end
     local item = {row = row, depth = depth}
     output[#output + 1] = item
@@ -463,8 +464,7 @@ local function AddBranch(output, row, depth, visible, matched, searching)
         for _, child in ipairs(row.children) do
             if visible[child.key] then item.hasChildren = true; break end
         end
-        item.collapsed = not searching and ns.db.collapsed[row.key]
-        item.searching = searching
+        item.collapsed = collapsed and collapsed[row.key]
     end
     if matched[row.key] then
         for _, need in ipairs(row.needs) do
@@ -474,7 +474,7 @@ local function AddBranch(output, row, depth, visible, matched, searching)
         end
     end
     if item.collapsed then return end
-    for _, child in ipairs(row.children) do AddBranch(output, child, depth + 1, visible, matched, searching) end
+    for _, child in ipairs(row.children) do AddBranch(output, child, depth + 1, visible, matched, collapsed) end
 end
 
 local function Reveal(row, visible)
@@ -485,9 +485,10 @@ local function Reveal(row, visible)
     end
 end
 
-function ns.VisibleRows(query, filter, category)
+function ns.VisibleRows(query, filter, category, searchCollapsed)
     local matched, visible, included, output = {}, {}, {}, {}
     query = ns.Fold(ns.Trim(query))
+    local collapsed = query == "" and ns.db.collapsed or searchCollapsed
     for _, row in ipairs(ns.catalog.rows) do
         if not row.secure and (not category or row.category == category) and row.search:find(query, 1, true) then
             matched[row.key] = true
@@ -498,7 +499,7 @@ function ns.VisibleRows(query, filter, category)
         end
     end
     for _, row in ipairs(ns.catalog.rows) do
-        if not row.parent and included[row.key] then AddBranch(output, row, 0, visible, matched, query ~= "") end
+        if not row.parent and included[row.key] then AddBranch(output, row, 0, visible, matched, collapsed) end
     end
     return output
 end

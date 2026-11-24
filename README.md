@@ -10,7 +10,7 @@ The AddOns tab keeps modules under their parent and shows how many are disabled.
 
 The list starts with the All filter. Addons appear once, with modules grouped under their declared parent or an installed required dependency. A state filter includes a group when its parent or a module matches. An expanded group shows both enabled and disabled modules within the current search and category. Hover an addon to see its required dependencies. The checkbox updates as you edit the draft, and the status column shows the current state and any pending change. Choose **Apply** to review your changes and confirm the reload. The manager includes required dependencies when enabling an addon and accounts for dependents when disabling one.
 
-Use the disclosure arrow to collapse a group. The counter shows how many modules are off out of the total, or how many are on when all are enabled. Search by title or folder name to temporarily open branches with matching modules. Right-click a group to stage a change for all its modules.
+Use the disclosure arrow to collapse or expand a group. The counter shows how many modules are off out of the total, or how many are on when all are enabled. A new search by title or folder name opens branches with matching modules. Use the arrows to adjust the results. Clearing the search restores the saved group layout. Right-click a group to stage a change for all its modules.
 
 Outdated addons are marked in the status column and have the same per-character checkboxes as other addons. **Load out-of-date addons** controls WoW's version check for all characters. Choose **Apply** to save this setting and reload.
 

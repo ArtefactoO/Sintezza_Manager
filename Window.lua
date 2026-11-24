@@ -4,6 +4,7 @@ local T = S.palette
 local size = ns.WindowSize
 local window, popup, selected, quickProfile, category, notice
 local filter = "all"
+local searchQuery, searchCollapsed = "", {}
 local page = "addons"
 local Draw, SetPage, OpenProfileMenu
 local ADDON_ROW_HEIGHT = 28
@@ -126,8 +127,8 @@ local function AddonRow(parent)
     row.disclosure.arrow:SetPoint("CENTER")
     row.disclosure:SetScript("OnClick", function()
         local item = row.item
-        if item.hasChildren and not item.searching then
-            ns.ToggleGroup(item.row.key)
+        if item.hasChildren then
+            ns.ToggleGroup(item.row.key, searchQuery ~= "" and searchCollapsed or nil)
             Draw()
         end
     end)
@@ -240,7 +241,6 @@ local function PaintAddon(row, item, index)
     row.disclosure:ClearAllPoints()
     row.disclosure:SetPoint("LEFT", 2 + inset, 0)
     row.disclosure:SetShown(item.hasChildren == true)
-    row.disclosure:SetEnabled(not item.searching)
     row.disclosure.arrow:SetExpanded(not item.collapsed)
     row.box:ClearAllPoints()
     row.box:SetPoint("LEFT", 28 + inset, 0)
@@ -640,11 +640,10 @@ Draw = function(top)
         window.allowOutdated:SetShown(ns.allowOutdated ~= nil)
         window.allowOutdated.label:SetShown(ns.allowOutdated ~= nil)
         window.allowOutdated:SetChecked(ns.allowOutdated == true)
-        local query = window.search:GetText()
-        local rows = ns.VisibleRows(query, filter, category)
+        local rows = ns.VisibleRows(searchQuery, filter, category, searchCollapsed)
         window.addons:Set(rows, top)
         window.empty:SetShown(#rows == 0)
-        window.empty:SetText(filter == "disabled" and ns.Trim(query) == "" and not category
+        window.empty:SetText(filter == "disabled" and searchQuery == "" and not category
             and L("No disabled addons. Choose All to see the list.", "Нет отключенных аддонов. Нажмите «Все», чтобы увидеть список.")
             or L("No matching addons.", "Аддоны не найдены."))
     else
@@ -757,9 +756,9 @@ local function Build()
     frame.quick:SetShown(page == "addons")
 
     local filters = {
-        {id = "disabled", label = L("Disabled", "Отключенные"), short = L("Off", "Откл."), width = 99, narrow = 57},
-        {id = "enabled", label = L("Enabled", "Включенные"), short = L("On", "Вкл."), width = 99, narrow = 51},
         {id = "all", label = L("All", "Все"), short = L("All", "Все"), width = 42, narrow = 38},
+        {id = "enabled", label = L("Enabled", "Включенные"), short = L("On", "Вкл."), width = 99, narrow = 51},
+        {id = "disabled", label = L("Disabled", "Отключенные"), short = L("Off", "Откл."), width = 99, narrow = 57},
     }
     local buttons = {}
     frame.filters = buttons
@@ -778,7 +777,12 @@ local function Build()
     frame.search = S.Input(frame.addonPage, L("Find addon…", "Найти аддон…"))
     frame.search:SetPoint("TOPLEFT")
     frame.search:SetPoint("RIGHT", frame.category, "LEFT", -5, 0)
-    frame.search:HookScript("OnTextChanged", function() Draw(true) end)
+    frame.search:HookScript("OnTextChanged", function(input)
+        local query = ns.Fold(ns.Trim(input:GetText()))
+        if query == searchQuery then return end
+        searchQuery, searchCollapsed = query, {}
+        Draw(true)
+    end)
     buttons[1]:SetPoint("TOPLEFT", frame.search, "BOTTOMLEFT", 0, -5)
     buttons[2]:SetPoint("LEFT", buttons[1], "RIGHT", 4, 0)
     buttons[3]:SetPoint("LEFT", buttons[2], "RIGHT", 4, 0)

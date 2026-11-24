@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.1
+
+- Put the All, Enabled, and Disabled filters in that order.
+- Keep group arrows usable in search results and restore the ordinary group layout when search is cleared.
+
 ## 0.2.0
 
 - Show each addon's declared icon beside its name in the AddOns list.

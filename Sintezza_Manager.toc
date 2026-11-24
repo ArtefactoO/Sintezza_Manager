@@ -4,7 +4,7 @@
 ## Notes-ruRU: Управление аддонами, зависимостями и общими наборами персонажей.
 ## Author: Sintezza
 ## X-License: MIT
-## Version: 0.2.0
+## Version: 0.2.1
 ## IconTexture: Interface\AddOns\Sintezza_Manager\Media\Icon
 ## Category: Addon Management
 ## OptionalDeps: Sintezza_Theme
